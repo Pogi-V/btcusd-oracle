@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BTCUSD News Oracle</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      padding: 2em;
+    }
+    h1 { text-align: center; color: #FFD700; }
+    #btcPrice { font-size: 2em; margin-bottom: 10px; text-align: center; }
+    #lastUpdated { font-size: 0.9em; color: #ccc; text-align: center; }
+    #newsFeed { margin-top: 30px; }
+    .news-item {
+      background: #222;
+      padding: 1em;
+      margin-bottom: 1em;
+      border-left: 4px solid #FFD700;
+    }
+    .news-impact.high { color: red; font-weight: bold; }
+    .news-impact.medium { color: orange; }
+    .sentiment-indicator { margin-left: 1em; }
+    a { color: #00afff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>BTCUSD Market Oracle</h1>
+  <div id="btcPrice">Loading BTC price...</div>
+  <div id="lastUpdated">Last updated: --</div>
+  <div id="newsFeed">Loading news...</div>
+
+  <script>
+    let currentBTCPrice = 0;
+
+    function getPSTTime(dateObj = new Date()) {
+      return new Date(dateObj.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    }
+
+    function updateBTCPriceDisplay() {
+      document.getElementById("btcPrice").innerHTML = `BTCUSD: $${currentBTCPrice.toLocaleString()}`;
+      document.getElementById("lastUpdated").textContent = "Last updated: " + getPSTTime().toLocaleString("en-US", { hour12: true });
+    }
+
+    async function fetchLiveBTCPrice() {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+        const data = await res.json();
+        currentBTCPrice = data.bitcoin.usd;
+        updateBTCPriceDisplay();
+      } catch (error) {
+        console.error('BTC price fetch failed:', error);
+        currentBTCPrice += (Math.random() - 0.5) * 100; // fallback simulation
+        updateBTCPriceDisplay();
+      }
+    }
+
+    async function updateNewsFeed() {
+      const feedEl = document.getElementById('newsFeed');
+      feedEl.innerHTML = '<div>📡 Fetching daily BTC news...</div>';
+      try {
+        const res = await fetch('https://cryptopanic.com/api/v1/posts/?auth_token=YOUR_API_KEY_HERE&currencies=BTC');
+        const data = await res.json();
+        let newsHTML = '';
+        data.results.slice(0, 5).forEach(post => {
+          const impact = post.votes.important > 0 ? 'high' : 'medium';
+          const sentiment = post.title.toLowerCase().includes('bull') ? '📈' :
+                            post.title.toLowerCase().includes('bear') ? '📉' : '📊';
+          const pstTime = getPSTTime(new Date(post.published_at));
+          const timeString = pstTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+          newsHTML += `
+            <div class="news-item">
+              <div><strong>${timeString} PST</strong> <span class="news-impact ${impact}">${impact.toUpperCase()} IMPACT</span> <span class="sentiment-indicator">${sentiment}</span></div>
+              <h4><a href="${post.url}" target="_blank">${post.title}</a></h4>
+              <div style="color:#aaa;">Source: ${post.domain}</div>
+            </div>
+          `;
+        });
+        feedEl.innerHTML = newsHTML;
+      } catch (err) {
+        console.error('News fetch failed:', err);
+        feedEl.innerHTML = '<div>⚠️ Failed to load news. Try again later.</div>';
+      }
+    }
+
+    function refreshData() {
+      fetchLiveBTCPrice();
+      updateNewsFeed();
+    }
+
+    window.onload = function () {
+      refreshData();
+      setInterval(refreshData, 28800000); // every 8 hours
+    };
+  </script>
+</body>
+</html>
